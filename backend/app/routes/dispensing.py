@@ -20,6 +20,8 @@ def get_dispensing_history():
         search_pattern = f'%{search}%'
         query = query.filter(
             (Medicine.name.ilike(search_pattern)) |
+            (Medicine.generic_name.ilike(search_pattern)) |
+            (Medicine.brand_name.ilike(search_pattern)) |
             (Medicine.strength.ilike(search_pattern)) |
             (Batch.batch_number.ilike(search_pattern)) |
             (User.name.ilike(search_pattern))

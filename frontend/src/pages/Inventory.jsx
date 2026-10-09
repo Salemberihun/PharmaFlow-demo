@@ -117,7 +117,21 @@ export default function Inventory() {
                   return (
                     <tr key={med.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-3.5 px-6 font-semibold text-slate-900">
-                        {med.name}
+                        {med.brand_name ? (
+                          <div>
+                            <div>{med.brand_name}</div>
+                            {med.generic_name && (
+                              <div className="text-xs text-slate-400 font-normal">{med.generic_name}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <div>
+                            <div>{med.name}</div>
+                            {med.generic_name && med.generic_name !== med.name && (
+                              <div className="text-xs text-slate-400 font-normal">{med.generic_name}</div>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3.5 px-6 text-slate-600">
                         {med.strength}

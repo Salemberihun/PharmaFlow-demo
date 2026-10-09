@@ -17,6 +17,8 @@ def get_medicines():
         search_pattern = f'%{search}%'
         query = query.filter(
             (Medicine.name.ilike(search_pattern)) |
+            (Medicine.generic_name.ilike(search_pattern)) |
+            (Medicine.brand_name.ilike(search_pattern)) |
             (Medicine.strength.ilike(search_pattern))
         )
 
@@ -47,13 +49,16 @@ def get_medicine(medicine_id):
 @medicines_bp.route('', methods=['POST'])
 def create_medicine():
     data = request.get_json() or {}
-    name = data.get('name', '').strip()
+    generic_name = data.get('generic_name', '').strip()
+    brand_name = data.get('brand_name', '').strip()
+    name = data.get('name', '').strip() or brand_name or generic_name
     strength = data.get('strength', '').strip()
+    number_of_strips = data.get('number_of_strips')
 
     if not name or not strength:
         return jsonify({
             'error': True,
-            'message': 'Medicine name and strength are required'
+            'message': 'Medicine name (or generic/brand name) and strength are required'
         }), 400
 
     existing = Medicine.query.filter(
@@ -66,11 +71,21 @@ def create_medicine():
             'message': f'Medicine "{name} {strength}" already exists'
         }), 409
 
+    strips_val = None
+    if number_of_strips is not None and str(number_of_strips).strip() != '':
+        try:
+            strips_val = int(number_of_strips)
+        except (ValueError, TypeError):
+            pass
+
     medicine = Medicine(
         name=name,
+        generic_name=generic_name or None,
+        brand_name=brand_name or None,
         strength=strength,
         unit=data.get('unit', 'boxes').strip() or 'boxes',
         min_stock_level=int(data.get('min_stock_level', 25)),
+        number_of_strips=strips_val,
         category_id=data.get('category_id'),
         description=data.get('description')
     )
@@ -87,8 +102,17 @@ def update_medicine(medicine_id):
 
     if 'name' in data and data['name'].strip():
         med.name = data['name'].strip()
+    if 'generic_name' in data:
+        med.generic_name = data['generic_name'].strip() if data['generic_name'] else None
+    if 'brand_name' in data:
+        med.brand_name = data['brand_name'].strip() if data['brand_name'] else None
     if 'strength' in data and data['strength'].strip():
         med.strength = data['strength'].strip()
+    if 'number_of_strips' in data:
+        try:
+            med.number_of_strips = int(data['number_of_strips']) if data['number_of_strips'] is not None else None
+        except (ValueError, TypeError):
+            pass
     if 'unit' in data and data['unit'].strip():
         med.unit = data['unit'].strip()
     if 'min_stock_level' in data:

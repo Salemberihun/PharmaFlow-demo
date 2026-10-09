@@ -41,9 +41,12 @@ def receive_batch():
 
     batch_number = data.get('batch_number', '').strip()
     medicine_id = data.get('medicine_id')
+    generic_name = data.get('generic_name', '').strip()
+    brand_name = data.get('brand_name', '').strip()
     medicine_name = data.get('medicine_name', '').strip()
     strength = data.get('strength', '').strip()
     quantity = data.get('quantity')
+    number_of_strips = data.get('number_of_strips')
     expiry_date_str = data.get('expiry_date', '').strip()
     supplier_id = data.get('supplier_id')
     unit_price = data.get('unit_price')
@@ -55,6 +58,15 @@ def receive_batch():
         return jsonify({'error': True, 'message': 'Valid quantity (>0) is required'}), 400
     quantity = int(quantity)
 
+    strips_val = None
+    if number_of_strips is not None and str(number_of_strips).strip() != '':
+        try:
+            strips_val = int(number_of_strips)
+            if strips_val < 0:
+                return jsonify({'error': True, 'message': 'Number of strips must be non-negative'}), 400
+        except (ValueError, TypeError):
+            return jsonify({'error': True, 'message': 'Invalid number of strips format'}), 400
+
     if not expiry_date_str:
         return jsonify({'error': True, 'message': 'Expiry date is required'}), 400
 
@@ -63,28 +75,49 @@ def receive_batch():
     except ValueError:
         return jsonify({'error': True, 'message': 'Invalid expiry_date format, expected YYYY-MM-DD'}), 400
 
-    # Resolve or create medicine if medicine_name was provided
+    # Resolve or create medicine if medicine_id was not provided
     if not medicine_id:
-        if not medicine_name or not strength:
-            return jsonify({'error': True, 'message': 'Either medicine_id or both medicine_name and strength must be provided'}), 400
-        
+        name_candidate = brand_name or generic_name or medicine_name
+        if not name_candidate or not strength:
+            return jsonify({'error': True, 'message': 'Either medicine_id or generic name/brand name and strength must be provided'}), 400
+
+        conditions = [Medicine.name.ilike(name_candidate)]
+        if generic_name:
+            conditions.append(Medicine.generic_name.ilike(generic_name))
+        if brand_name:
+            conditions.append(Medicine.brand_name.ilike(brand_name))
+
         medicine = Medicine.query.filter(
-            Medicine.name.ilike(medicine_name),
-            Medicine.strength.ilike(strength)
+            Medicine.strength.ilike(strength),
+            db.or_(*conditions)
         ).first()
 
         if not medicine:
             medicine = Medicine(
-                name=medicine_name,
+                name=name_candidate,
+                generic_name=generic_name or (medicine_name if not brand_name else None),
+                brand_name=brand_name or None,
                 strength=strength,
                 unit=data.get('unit', 'boxes') or 'boxes',
-                min_stock_level=int(data.get('min_stock_level', 25))
+                min_stock_level=int(data.get('min_stock_level', 25)),
+                number_of_strips=strips_val
             )
             db.session.add(medicine)
+            db.session.flush()
+        else:
+            if generic_name and not medicine.generic_name:
+                medicine.generic_name = generic_name
+            if brand_name and not medicine.brand_name:
+                medicine.brand_name = brand_name
+            if strips_val is not None and not medicine.number_of_strips:
+                medicine.number_of_strips = strips_val
             db.session.flush()
         medicine_id = medicine.id
     else:
         medicine = Medicine.query.get_or_404(medicine_id, description=f'Medicine {medicine_id} not found')
+        if strips_val is not None and not medicine.number_of_strips:
+            medicine.number_of_strips = strips_val
+            db.session.flush()
 
     # Check for duplicate batch number
     existing_batch = Batch.query.filter_by(batch_number=batch_number).first()
@@ -97,6 +130,7 @@ def receive_batch():
         supplier_id=supplier_id,
         quantity=quantity,
         initial_quantity=quantity,
+        number_of_strips=strips_val,
         unit_price=unit_price,
         expiry_date=expiry_date,
         received_date=date.today(),

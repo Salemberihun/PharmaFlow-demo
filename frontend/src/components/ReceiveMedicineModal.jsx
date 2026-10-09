@@ -5,10 +5,12 @@ import { api } from '../services/api';
 export default function ReceiveMedicineModal({ isOpen, onClose, onSuccess, existingMedicines = [] }) {
   const [isNewMedicine, setIsNewMedicine] = useState(false);
   const [selectedMedicineId, setSelectedMedicineId] = useState('');
-  const [name, setName] = useState('');
+  const [genericName, setGenericName] = useState('');
+  const [brandName, setBrandName] = useState('');
   const [strength, setStrength] = useState('');
   const [batchNumber, setBatchNumber] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [numberOfStrips, setNumberOfStrips] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
   const [supplierId, setSupplierId] = useState('');
@@ -20,13 +22,26 @@ export default function ReceiveMedicineModal({ isOpen, onClose, onSuccess, exist
     if (isOpen) {
       api.getSuppliers().then(res => setSuppliers(res.suppliers || [])).catch(() => {});
       setError('');
-      if (existingMedicines.length > 0 && !selectedMedicineId) {
+      if (existingMedicines.length > 0) {
         setSelectedMedicineId(existingMedicines[0].id);
       }
+    } else {
+      setGenericName('');
+      setBrandName('');
+      setStrength('');
+      setBatchNumber('');
+      setQuantity('');
+      setNumberOfStrips('');
+      setExpiryDate('');
+      setUnitPrice('');
+      setSupplierId('');
+      setError('');
     }
   }, [isOpen, existingMedicines]);
 
   if (!isOpen) return null;
+
+  const selectedMedicine = existingMedicines.find(m => m.id === parseInt(selectedMedicineId));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,6 +55,10 @@ export default function ReceiveMedicineModal({ isOpen, onClose, onSuccess, exist
       setError('Please enter a valid positive quantity');
       return;
     }
+    if (numberOfStrips && parseInt(numberOfStrips) <= 0) {
+      setError('Please enter a valid positive number of strips');
+      return;
+    }
     if (!expiryDate) {
       setError('Expiry date is required');
       return;
@@ -48,17 +67,24 @@ export default function ReceiveMedicineModal({ isOpen, onClose, onSuccess, exist
     const payload = {
       batch_number: batchNumber.trim().toUpperCase(),
       quantity: parseInt(quantity),
+      number_of_strips: numberOfStrips ? parseInt(numberOfStrips) : null,
       expiry_date: expiryDate,
       unit_price: unitPrice ? parseFloat(unitPrice) : null,
       supplier_id: supplierId ? parseInt(supplierId) : null,
     };
 
     if (isNewMedicine) {
-      if (!name.trim() || !strength.trim()) {
-        setError('Medicine name and strength are required');
+      if (!genericName.trim() && !brandName.trim()) {
+        setError('Generic name or brand name is required');
         return;
       }
-      payload.medicine_name = name.trim();
+      if (!strength.trim()) {
+        setError('Strength is required');
+        return;
+      }
+      payload.generic_name = genericName.trim() || null;
+      payload.brand_name = brandName.trim() || null;
+      payload.medicine_name = brandName.trim() || genericName.trim();
       payload.strength = strength.trim();
     } else {
       if (!selectedMedicineId) {
@@ -136,30 +162,65 @@ export default function ReceiveMedicineModal({ isOpen, onClose, onSuccess, exist
                 onChange={(e) => setSelectedMedicineId(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 bg-white"
               >
-                {existingMedicines.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} ({m.strength}) — Current: {m.total_stock} {m.unit}
-                  </option>
-                ))}
+                {existingMedicines.map((m) => {
+                  const displayName = m.brand_name && m.generic_name
+                    ? `${m.brand_name} (${m.generic_name})`
+                    : (m.brand_name || m.generic_name || m.name);
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {displayName} ({m.strength}) — Current: {m.total_stock} {m.unit}
+                    </option>
+                  );
+                })}
               </select>
+              {selectedMedicine && (
+                <div className="mt-2 p-2.5 bg-slate-50 border border-slate-100 rounded-lg flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                  <div>
+                    <span className="text-slate-400">Generic:</span>{' '}
+                    <span className="font-medium text-slate-800">{selectedMedicine.generic_name || selectedMedicine.name}</span>
+                  </div>
+                  {selectedMedicine.brand_name && (
+                    <div>
+                      <span className="text-slate-400">Brand:</span>{' '}
+                      <span className="font-medium text-slate-800">{selectedMedicine.brand_name}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-slate-400">Strength:</span>{' '}
+                    <span className="font-medium text-slate-800">{selectedMedicine.strength}</span>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">MEDICINE NAME</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Ciprofloxacin"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                />
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">GENERIC NAME</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Amoxicillin"
+                    value={genericName}
+                    onChange={(e) => setGenericName(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">BRAND NAME</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Amoxil"
+                    value={brandName}
+                    onChange={(e) => setBrandName(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">STRENGTH</label>
                 <input
                   type="text"
-                  placeholder="e.g. 250 mg"
+                  placeholder="e.g. 500 mg"
                   value={strength}
                   onChange={(e) => setStrength(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
@@ -168,7 +229,7 @@ export default function ReceiveMedicineModal({ isOpen, onClose, onSuccess, exist
             </div>
           )}
 
-          {/* Batch & Quantity */}
+          {/* Batch Number & Expiry Date */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">BATCH NUMBER</label>
@@ -181,6 +242,19 @@ export default function ReceiveMedicineModal({ isOpen, onClose, onSuccess, exist
               />
             </div>
             <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">EXPIRY DATE</label>
+              <input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 bg-white"
+              />
+            </div>
+          </div>
+
+          {/* Quantity & Number of Strips */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">QUANTITY (BOXES)</label>
               <input
                 type="number"
@@ -191,19 +265,21 @@ export default function ReceiveMedicineModal({ isOpen, onClose, onSuccess, exist
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
               />
             </div>
-          </div>
-
-          {/* Expiry Date & Unit Price */}
-          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">EXPIRY DATE</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">NUMBER OF STRIPS</label>
               <input
-                type="date"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 bg-white"
+                type="number"
+                min="1"
+                placeholder="e.g. 10"
+                value={numberOfStrips}
+                onChange={(e) => setNumberOfStrips(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
               />
             </div>
+          </div>
+
+          {/* Unit Price & Supplier */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">UNIT PRICE ($)</label>
               <input
@@ -215,23 +291,21 @@ export default function ReceiveMedicineModal({ isOpen, onClose, onSuccess, exist
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
               />
             </div>
-          </div>
-
-          {/* Supplier */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">SUPPLIER (OPTIONAL)</label>
-            <select
-              value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 bg-white"
-            >
-              <option value="">Select supplier...</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">SUPPLIER (OPTIONAL)</label>
+              <select
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 bg-white"
+              >
+                <option value="">Select supplier...</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Footer Actions */}

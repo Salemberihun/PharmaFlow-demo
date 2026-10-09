@@ -6,9 +6,12 @@ class Medicine(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False, index=True)
+    generic_name = db.Column(db.String(150), nullable=True, index=True)
+    brand_name = db.Column(db.String(150), nullable=True, index=True)
     strength = db.Column(db.String(50), nullable=False)
     unit = db.Column(db.String(50), default='boxes', nullable=False)
     min_stock_level = db.Column(db.Integer, default=25, nullable=False)
+    number_of_strips = db.Column(db.Integer, nullable=True)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
     description = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -46,9 +49,12 @@ class Medicine(db.Model):
         data = {
             'id': self.id,
             'name': self.name,
+            'generic_name': self.generic_name,
+            'brand_name': self.brand_name,
             'strength': self.strength,
             'unit': self.unit,
             'min_stock_level': self.min_stock_level,
+            'number_of_strips': self.number_of_strips,
             'category_id': self.category_id,
             'category_name': self.category.name if self.category else None,
             'description': self.description,
