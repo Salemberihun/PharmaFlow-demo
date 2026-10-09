@@ -12,6 +12,8 @@ class Medicine(db.Model):
     unit = db.Column(db.String(50), default='boxes', nullable=False)
     min_stock_level = db.Column(db.Integer, default=25, nullable=False)
     number_of_strips = db.Column(db.Integer, nullable=True)
+    gtin = db.Column(db.String(50), nullable=True, index=True)
+    barcode = db.Column(db.String(50), nullable=True, index=True)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
     description = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -55,6 +57,8 @@ class Medicine(db.Model):
             'unit': self.unit,
             'min_stock_level': self.min_stock_level,
             'number_of_strips': self.number_of_strips,
+            'gtin': self.gtin,
+            'barcode': self.barcode,
             'category_id': self.category_id,
             'category_name': self.category.name if self.category else None,
             'description': self.description,

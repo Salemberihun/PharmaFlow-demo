@@ -75,6 +75,9 @@ def receive_batch():
     except ValueError:
         return jsonify({'error': True, 'message': 'Invalid expiry_date format, expected YYYY-MM-DD'}), 400
 
+    gtin = data.get('gtin', '').strip() if data.get('gtin') else None
+    barcode = data.get('barcode', '').strip() if data.get('barcode') else None
+
     # Resolve or create medicine if medicine_id was not provided
     if not medicine_id:
         name_candidate = brand_name or generic_name or medicine_name
@@ -100,7 +103,9 @@ def receive_batch():
                 strength=strength,
                 unit=data.get('unit', 'boxes') or 'boxes',
                 min_stock_level=int(data.get('min_stock_level', 25)),
-                number_of_strips=strips_val
+                number_of_strips=strips_val,
+                gtin=gtin,
+                barcode=barcode
             )
             db.session.add(medicine)
             db.session.flush()
@@ -111,13 +116,21 @@ def receive_batch():
                 medicine.brand_name = brand_name
             if strips_val is not None and not medicine.number_of_strips:
                 medicine.number_of_strips = strips_val
+            if gtin and not medicine.gtin:
+                medicine.gtin = gtin
+            if barcode and not medicine.barcode:
+                medicine.barcode = barcode
             db.session.flush()
         medicine_id = medicine.id
     else:
         medicine = Medicine.query.get_or_404(medicine_id, description=f'Medicine {medicine_id} not found')
         if strips_val is not None and not medicine.number_of_strips:
             medicine.number_of_strips = strips_val
-            db.session.flush()
+        if gtin and not medicine.gtin:
+            medicine.gtin = gtin
+        if barcode and not medicine.barcode:
+            medicine.barcode = barcode
+        db.session.flush()
 
     # Check for duplicate batch number
     existing_batch = Batch.query.filter_by(batch_number=batch_number).first()

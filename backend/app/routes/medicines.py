@@ -8,10 +8,25 @@ medicines_bp = Blueprint('medicines', __name__)
 @medicines_bp.route('', methods=['GET'])
 def get_medicines():
     search = request.args.get('search', '').strip()
+    gtin_param = request.args.get('gtin', '').strip()
+    barcode_param = request.args.get('barcode', '').strip()
     status_filter = request.args.get('status', '').strip().lower()
     include_batches = request.args.get('include_batches', 'false').lower() == 'true'
 
     query = Medicine.query
+
+    target_code = gtin_param or barcode_param
+    if target_code:
+        unpadded = target_code.lstrip('0')
+        padded14 = target_code.zfill(14) if target_code.isdigit() else target_code
+        query = query.filter(
+            (Medicine.gtin == target_code) |
+            (Medicine.gtin == unpadded) |
+            (Medicine.gtin == padded14) |
+            (Medicine.barcode == target_code) |
+            (Medicine.barcode == unpadded) |
+            (Medicine.barcode == padded14)
+        )
 
     if search:
         search_pattern = f'%{search}%'
@@ -19,7 +34,9 @@ def get_medicines():
             (Medicine.name.ilike(search_pattern)) |
             (Medicine.generic_name.ilike(search_pattern)) |
             (Medicine.brand_name.ilike(search_pattern)) |
-            (Medicine.strength.ilike(search_pattern))
+            (Medicine.strength.ilike(search_pattern)) |
+            (Medicine.gtin.ilike(search_pattern)) |
+            (Medicine.barcode.ilike(search_pattern))
         )
 
     medicines = query.order_by(Medicine.name.asc()).all()
@@ -78,6 +95,9 @@ def create_medicine():
         except (ValueError, TypeError):
             pass
 
+    gtin = data.get('gtin', '').strip() if data.get('gtin') else None
+    barcode = data.get('barcode', '').strip() if data.get('barcode') else None
+
     medicine = Medicine(
         name=name,
         generic_name=generic_name or None,
@@ -86,6 +106,8 @@ def create_medicine():
         unit=data.get('unit', 'boxes').strip() or 'boxes',
         min_stock_level=int(data.get('min_stock_level', 25)),
         number_of_strips=strips_val,
+        gtin=gtin,
+        barcode=barcode,
         category_id=data.get('category_id'),
         description=data.get('description')
     )
@@ -108,6 +130,10 @@ def update_medicine(medicine_id):
         med.brand_name = data['brand_name'].strip() if data['brand_name'] else None
     if 'strength' in data and data['strength'].strip():
         med.strength = data['strength'].strip()
+    if 'gtin' in data:
+        med.gtin = data['gtin'].strip() if data['gtin'] else None
+    if 'barcode' in data:
+        med.barcode = data['barcode'].strip() if data['barcode'] else None
     if 'number_of_strips' in data:
         try:
             med.number_of_strips = int(data['number_of_strips']) if data['number_of_strips'] is not None else None

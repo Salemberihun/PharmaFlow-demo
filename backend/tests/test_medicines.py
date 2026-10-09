@@ -67,3 +67,33 @@ def test_filter_medicines_by_status(client, sample_data):
     data = res.get_json()
     assert data['total'] == 1
     assert data['medicines'][0]['name'] == 'Ibuprofen'
+
+def test_get_medicine_by_gtin(client, sample_data):
+    # Update sample medicine with gtin
+    med_id = sample_data['medicines'][0].id
+    client.put(f'/api/medicines/{med_id}', json={'gtin': '08435123456789'})
+
+    # Search with exact GTIN
+    res = client.get('/api/medicines?gtin=08435123456789')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['total'] == 1
+    assert data['medicines'][0]['id'] == med_id
+
+    # Search with unpadded GTIN
+    res_unpadded = client.get('/api/medicines?gtin=8435123456789')
+    assert res_unpadded.status_code == 200
+    assert res_unpadded.get_json()['total'] == 1
+
+def test_create_medicine_with_gtin(client, db_session):
+    payload = {
+        'name': 'Cefixime',
+        'strength': '200 mg',
+        'gtin': '01234567899999',
+        'barcode': '01234567899999'
+    }
+    res = client.post('/api/medicines', json=payload)
+    assert res.status_code == 201
+    data = res.get_json()
+    assert data['gtin'] == '01234567899999'
+    assert data['barcode'] == '01234567899999'

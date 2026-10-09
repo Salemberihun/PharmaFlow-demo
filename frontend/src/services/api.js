@@ -35,10 +35,15 @@ export const api = {
   getMedicines: (params = {}) => {
     const query = new URLSearchParams();
     if (params.search) query.append('search', params.search);
+    if (params.gtin) query.append('gtin', params.gtin);
+    if (params.barcode) query.append('barcode', params.barcode);
     if (params.status) query.append('status', params.status);
     if (params.include_batches) query.append('include_batches', 'true');
     const queryString = query.toString();
     return request(`/medicines${queryString ? `?${queryString}` : ''}`);
+  },
+  getMedicineByGtin: (gtin) => {
+    return request(`/medicines?gtin=${encodeURIComponent(gtin)}`);
   },
   getMedicine: (id) => request(`/medicines/${id}`),
   createMedicine: (data) => request('/medicines', { method: 'POST', body: JSON.stringify(data) }),

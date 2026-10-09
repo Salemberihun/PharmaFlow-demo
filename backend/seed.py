@@ -74,6 +74,8 @@ def seed_database():
             strength='500 mg',
             unit='boxes',
             min_stock_level=25,
+            gtin='08435123456789',
+            barcode='08435123456789',
             category_id=cat_antibiotics.id,
             description='Broad-spectrum penicillin-type antibiotic used to treat bacterial infections.'
         )
@@ -82,6 +84,8 @@ def seed_database():
             strength='500 mg',
             unit='boxes',
             min_stock_level=25,
+            gtin='01234567890128',
+            barcode='01234567890128',
             category_id=cat_analgesics.id,
             description='Common pain reliever and fever reducer for mild to moderate symptoms.'
         )
@@ -90,6 +94,8 @@ def seed_database():
             strength='400 mg',
             unit='boxes',
             min_stock_level=25,
+            gtin='07640123456789',
+            barcode='07640123456789',
             category_id=cat_antiinflam.id,
             description='NSAID used for relieving pain, reducing inflammation, and lowering fever.'
         )
